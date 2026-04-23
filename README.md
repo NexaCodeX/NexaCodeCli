@@ -1,0 +1,2 @@
+# NexaCode
+code agent cli
