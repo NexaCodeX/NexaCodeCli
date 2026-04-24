@@ -10,19 +10,31 @@ use crossterm::ExecutableCommand;
 use nexacode_tui::{handle_event, render, Store};
 use nexacode_core::core::agent::AgentController;
 use nexacode_core::Config;
+use nexacode_core::NexaCodeDir;
 use ratatui::prelude::*;
 use std::io::{self, Stdout};
 use std::sync::Arc;
 use tracing::info;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
-    tracing_subscriber::fmt()
-        .with_env_filter(
+    // Initialize logging to file
+    let data_dir = NexaCodeDir::new();
+    let log_dir = data_dir.logs_dir();
+    
+    let file_appender = tracing_appender::rolling::daily(log_dir, "nexacode.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    
+    tracing_subscriber::registry()
+        .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "nexacode=info".into()),
+                .unwrap_or_else(|_| "nexacode=info".into())
         )
+        .with(tracing_subscriber::fmt::layer()
+            .with_writer(non_blocking)
+            .with_ansi(false))
         .init();
 
     info!("Starting NexaCode v{}", env!("CARGO_PKG_VERSION"));
