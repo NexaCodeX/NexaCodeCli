@@ -91,33 +91,48 @@ impl HttpLlmClient {
         // Process SSE stream
         let mut full_content = String::new();
         let mut stream = response.bytes_stream();
+        let mut chunk_count = 0;
+        
+        info!("Starting to process SSE stream");
         
         while let Some(chunk_result) = stream.next().await {
             let chunk = chunk_result.context("Failed to read stream chunk")?;
             let chunk_str = String::from_utf8_lossy(&chunk);
+            chunk_count += 1;
+            
+            debug!("Received chunk {}: {} bytes", chunk_count, chunk.len());
             
             // Parse SSE data
             for line in chunk_str.lines() {
                 if line.starts_with("data: ") {
                     let data = &line[6..];
                     if data == "[DONE]" {
+                        info!("Stream completed with [DONE]");
                         continue;
                     }
                     
                     // Parse the JSON
-                    if let Ok(stream_response) = serde_json::from_str::<OpenAIStreamResponse>(data) {
-                        if let Some(choice) = stream_response.choices.first() {
-                            if let Some(delta) = &choice.delta {
-                                if let Some(content) = &delta.content {
-                                    on_chunk(content);
-                                    full_content.push_str(content);
+                    match serde_json::from_str::<OpenAIStreamResponse>(data) {
+                        Ok(stream_response) => {
+                            if let Some(choice) = stream_response.choices.first() {
+                                if let Some(delta) = &choice.delta {
+                                    if let Some(content) = &delta.content {
+                                        debug!("Sending chunk: {} chars", content.len());
+                                        on_chunk(content);
+                                        full_content.push_str(content);
+                                    }
                                 }
                             }
+                        }
+                        Err(e) => {
+                            debug!("Failed to parse stream response: {} - data: {}", e, data);
                         }
                     }
                 }
             }
         }
+        
+        info!("Stream completed: {} chunks, {} total chars", chunk_count, full_content.len());
 
         if full_content.is_empty() {
             anyhow::bail!("No content received from streaming response");

@@ -132,16 +132,20 @@ async fn run_app(
         terminal.draw(|f| render(f, f.size(), store.state()))?;
         
         // Check for stream messages first (non-blocking)
+        let mut stream_msg_count = 0;
         while let Ok(msg) = stream_rx.try_recv() {
             use nexacode_core::{Action, MessageAction};
+            stream_msg_count += 1;
             match msg {
                 StreamMessage::Chunk(chunk) => {
+                    tracing::debug!("Received stream chunk #{}: {} chars", stream_msg_count, chunk.len());
                     store.dispatch(Action::Message(MessageAction::AppendToLastMessage(chunk)));
                 }
                 StreamMessage::Complete => {
-                    // Stream complete, nothing to do
+                    tracing::info!("Stream complete, total {} messages received", stream_msg_count);
                 }
                 StreamMessage::Error(err) => {
+                    tracing::error!("Stream error: {}", err);
                     store.dispatch(Action::show_status(err, true));
                 }
             }
@@ -325,18 +329,24 @@ async fn handle_input_mode(
                             // Spawn a task to handle streaming
                             let agent_clone = agent.clone();
                             let tx_clone = stream_tx.clone();
+                            let tx_for_complete = stream_tx.clone();
                             tokio::spawn(async move {
+                                tracing::info!("Starting streaming task for message: {}", msg);
+                                
                                 // Create callback that sends chunks via channel
                                 let callback = Box::new(move |chunk: &str| {
+                                    tracing::debug!("Callback sending chunk: {} chars", chunk.len());
                                     let _ = tx_clone.send(StreamMessage::Chunk(chunk.to_string()));
                                 });
                                 
                                 match agent_clone.process_user_message_stream(msg, callback).await {
                                     Ok(_) => {
-                                        let _ = stream_tx.send(StreamMessage::Complete);
+                                        tracing::info!("Streaming task completed successfully");
+                                        let _ = tx_for_complete.send(StreamMessage::Complete);
                                     }
                                     Err(e) => {
-                                        let _ = stream_tx.send(StreamMessage::Error(e.to_string()));
+                                        tracing::error!("Streaming task failed: {}", e);
+                                        let _ = tx_for_complete.send(StreamMessage::Error(e.to_string()));
                                     }
                                 }
                             });
