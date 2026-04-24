@@ -190,6 +190,21 @@ pub enum InputAction {
     /// Navigate input history
     HistoryUp,
     HistoryDown,
+    /// Navigate command suggestions
+    SuggestionUp,
+    SuggestionDown,
+    /// Select current command suggestion
+    SelectSuggestion,
+    /// Start model selection (from /models command)
+    StartModelSelection(Vec<crate::infra::llm::config::ModelInfo>),
+    /// Navigate model selection up
+    ModelSelectionUp,
+    /// Navigate model selection down
+    ModelSelectionDown,
+    /// Select current model and switch provider
+    SelectModel,
+    /// Cancel model selection
+    CancelModelSelection,
 }
 
 /// Actions related to navigation

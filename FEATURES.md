@@ -88,42 +88,68 @@
   - [x] 当前会话
   - [x] 会话切换（可选）
 
+### 2.4 CLI 斜杠命令系统 ✅
+- [x] 命令解析器
+  - [x] `/` 前缀识别
+  - [x] 命令参数解析
+  - [x] 命令自动补全
+- [x] 模型管理命令
+  - [x] `/model` - 切换模型
+  - [x] `/models` - 列出可用模型
+  - [x] `/config` - 查看当前配置
+- [x] 会话管理命令
+  - [x] `/new` - 新建对话
+  - [x] `/sessions` - 查看所有会话列表
+  - [x] `/load <id>` - 加载历史会话
+  - [x] `/save` - 保存当前会话
+  - [x] `/export` - 导出会话为文件
+- [x] 对话控制命令
+  - [x] `/undo` - 撤销上一轮对话
+  - [x] `/redo` - 重做
+  - [x] `/rollback` - 回滚到指定消息
+  - [x] `/clear` - 清空当前对话
+- [x] 系统命令
+  - [x] `/help` - 显示帮助信息
+  - [x] `/version` - 显示版本信息
+  - [x] `/quit` / `/exit` - 退出程序
+  - [x] `/theme` - 切换主题
+
 ---
 
 ## Phase 3: LLM 集成与 Agent 核心
 
-### 3.1 LLM 客户端
-- [ ] 定义统一 LLM trait
-- [ ] 实现 Anthropic Claude 客户端
-  - [ ] Messages API
-  - [ ] 流式响应
-  - [ ] Tool use 支持
-- [ ] 配置管理
-  - [ ] API Key 管理
-  - [ ] 模型选择
-  - [ ] 参数配置（temperature, max_tokens 等）
+### 3.1 LLM 客户端 ✅
+- [x] 定义统一 LLM trait
+- [x] 实现 Anthropic Claude 客户端
+  - [x] Messages API
+  - [x] 流式响应
+  - [x] Tool use 支持
+- [x] 配置管理
+  - [x] API Key 管理
+  - [x] 模型选择
+  - [x] 参数配置（temperature, max_tokens 等）
 
-### 3.2 Agent Controller
-- [ ] Agent State 状态机
-  - [ ] Idle
-  - [ ] Thinking
-  - [ ] ExecutingTool
-  - [ ] StreamingResponse
-  - [ ] Error
-- [ ] 核心推理循环
-  - [ ] 接收用户输入
-  - [ ] 构建上下文
-  - [ ] 调用 LLM
-  - [ ] 处理响应
-  - [ ] 流式渲染
+### 3.2 Agent Controller ✅
+- [x] Agent State 状态机
+  - [x] Idle
+  - [x] Thinking
+  - [x] ExecutingTool
+  - [x] StreamingResponse
+  - [x] Error
+- [x] 核心推理循环
+  - [x] 接收用户输入
+  - [x] 构建上下文
+  - [x] 调用 LLM
+  - [x] 处理响应
+  - [x] 流式渲染
 
-### 3.3 上下文管理
-- [ ] Context Budget 管理
-  - [ ] Token 计数
-  - [ ] 上下文裁剪策略
-- [ ] 消息历史管理
-  - [ ] 滑动窗口
-  - [ ] 重要消息保留
+### 3.3 上下文管理 ✅
+- [x] Context Budget 管理
+  - [x] Token 计数
+  - [x] 上下文裁剪策略
+- [x] 消息历史管理
+  - [x] 滑动窗口
+  - [x] 重要消息保留
 
 ---
 
@@ -146,24 +172,24 @@
   - [ ] Ping/Pong
   - [ ] 能力协商
 
-### 4.3 工具系统
-- [ ] Tool 数据结构
-  - [ ] Name
-  - [ ] Description
-  - [ ] InputSchema (JSON Schema)
-- [ ] 内置工具实现
-  - [ ] `read_file` - 读取文件
-  - [ ] `write_file` - 写入文件
-  - [ ] `edit_file` - 编辑文件（搜索替换）
-  - [ ] `list_dir` - 列出目录
-  - [ ] `run_command` - 运行命令
-  - [ ] `git_status` - Git 状态
-  - [ ] `git_diff` - Git diff
-- [ ] 工具执行沙箱
-  - [ ] 安全检查
-  - [ ] 超时控制
-  - [ ] 输出捕获
-  - [ ] 变更追踪
+### 4.3 工具系统 ✅
+- [x] Tool 数据结构
+  - [x] Name
+  - [x] Description
+  - [x] InputSchema (JSON Schema)
+- [x] 内置工具实现
+  - [x] `read_file` - 读取文件
+  - [x] `write_file` - 写入文件
+  - [x] `edit_file` - 编辑文件（搜索替换）
+  - [x] `list_dir` - 列出目录
+  - [x] `run_command` - 运行命令
+  - [x] `git_status` - Git 状态
+  - [x] `git_diff` - Git diff
+- [x] 工具执行沙箱
+  - [x] 安全检查
+  - [x] 超时控制
+  - [x] 输出捕获
+  - [x] 变更追踪
 
 ### 4.4 资源与提示词（可选，后续扩展）
 - [ ] Resources 读取

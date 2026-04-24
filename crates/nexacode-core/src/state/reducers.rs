@@ -151,6 +151,18 @@ pub struct State {
     pub command_history_index: Option<usize>,
     /// Saved command when navigating history
     pub saved_command: String,
+    /// Command suggestions (for slash commands)
+    pub command_suggestions: Vec<String>,
+    /// Currently selected command suggestion index
+    pub command_suggestion_index: Option<usize>,
+
+    // ========================================
+    // Model Selection State
+    // ========================================
+    /// Available models for selection (triggered by /models)
+    pub model_selections: Vec<crate::infra::llm::config::ModelInfo>,
+    /// Currently selected model index
+    pub model_selection_index: Option<usize>,
 
     // ========================================
     // UI State
@@ -196,6 +208,10 @@ impl Default for State {
             command_history: Vec::new(),
             command_history_index: None,
             saved_command: String::new(),
+            command_suggestions: Vec::new(),
+            command_suggestion_index: None,
+            model_selections: Vec::new(),
+            model_selection_index: None,
             agent_state: AgentState::Idle,
             mode: Mode::Input,
             theme: Theme::Light,
@@ -572,7 +588,101 @@ fn reduce_input(mut state: State, action: &InputAction) -> State {
                 }
             }
         }
+        InputAction::SuggestionUp => {
+            if !state.command_suggestions.is_empty() {
+                let current = state.command_suggestion_index.unwrap_or(0);
+                let new_index = if current == 0 {
+                    state.command_suggestions.len() - 1
+                } else {
+                    current - 1
+                };
+                state.command_suggestion_index = Some(new_index);
+            }
+            return state; // Return early to avoid resetting suggestions
+        }
+        InputAction::SuggestionDown => {
+            if !state.command_suggestions.is_empty() {
+                let current = state.command_suggestion_index.unwrap_or(0);
+                let new_index = if current + 1 >= state.command_suggestions.len() {
+                    0
+                } else {
+                    current + 1
+                };
+                state.command_suggestion_index = Some(new_index);
+            }
+            return state; // Return early to avoid resetting suggestions
+        }
+        InputAction::SelectSuggestion => {
+            if let Some(index) = state.command_suggestion_index {
+                if let Some(suggestion) = state.command_suggestions.get(index).cloned() {
+                    state.input = suggestion;
+                    state.cursor_pos = state.input.len();
+                    state.command_suggestions.clear();
+                    state.command_suggestion_index = None;
+                }
+            }
+            return state; // Return early
+        }
+        InputAction::StartModelSelection(models) => {
+            state.model_selections = models.clone();
+            state.model_selection_index = if models.is_empty() { None } else { Some(0) };
+            return state;
+        }
+        InputAction::ModelSelectionUp => {
+            if !state.model_selections.is_empty() {
+                let current = state.model_selection_index.unwrap_or(0);
+                let new_index = if current == 0 {
+                    state.model_selections.len() - 1
+                } else {
+                    current - 1
+                };
+                state.model_selection_index = Some(new_index);
+            }
+            return state;
+        }
+        InputAction::ModelSelectionDown => {
+            if !state.model_selections.is_empty() {
+                let current = state.model_selection_index.unwrap_or(0);
+                let new_index = if current + 1 >= state.model_selections.len() {
+                    0
+                } else {
+                    current + 1
+                };
+                state.model_selection_index = Some(new_index);
+            }
+            return state;
+        }
+        InputAction::SelectModel | InputAction::CancelModelSelection => {
+            // These are handled in the event handler, not the reducer
+            // Just clear the selection state here
+            state.model_selections.clear();
+            state.model_selection_index = None;
+            return state;
+        }
     }
+    
+    // Update command suggestions if input starts with /
+    if state.input.starts_with('/') {
+        use crate::core::slash_commands::get_suggestions_with_config;
+        use crate::Config;
+        
+        // Load config to get providers and models
+        let config = Config::load();
+        let providers = config.providers();
+        let models = config.configured_models();
+        
+        state.command_suggestions = get_suggestions_with_config(&state.input, &providers, &models);
+        // Reset selection when suggestions change
+        if !state.command_suggestions.is_empty() {
+            state.command_suggestion_index = Some(0);
+        } else {
+            state.command_suggestion_index = None;
+        }
+    } else {
+        state.command_suggestions.clear();
+        state.command_suggestion_index = None;
+    }
+    
     state
 }
 

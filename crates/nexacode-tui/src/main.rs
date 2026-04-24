@@ -23,6 +23,9 @@ fn main() -> Result<()> {
 
     info!("Starting NexaCode v{}", env!("CARGO_PKG_VERSION"));
 
+    // Initialize data directory if this is a first run
+    initialize_data_directory()?;
+
     // Setup terminal
     let mut terminal = setup_terminal()?;
 
@@ -38,6 +41,24 @@ fn main() -> Result<()> {
     if let Err(e) = result {
         eprintln!("Error: {}", e);
         std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+/// Initialize the NexaCode data directory on first run
+fn initialize_data_directory() -> Result<()> {
+    use nexacode_core::NexaCodeDir;
+
+    let data_dir = NexaCodeDir::new();
+
+    if data_dir.is_first_run() {
+        info!("First run detected - initializing data directory");
+        data_dir.initialize()?;
+        info!("Data directory created at: {:?}", data_dir.root());
+    } else {
+        // Ensure directories exist even if not first run
+        data_dir.ensure_dirs()?;
     }
 
     Ok(())
