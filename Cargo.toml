@@ -1,0 +1,53 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/nexacode-core",
+    "crates/nexacode-tui",
+]
+default-members = ["crates/nexacode-tui"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["NexaCode Team"]
+license = "MIT"
+repository = "https://github.com/fansili/nexacode"
+
+[workspace.dependencies]
+# Async
+tokio = { version = "1.0", features = ["full"] }
+futures = "0.3"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Config
+figment = { version = "0.10", features = ["toml", "env"] }
+
+# TUI
+ratatui = "0.27"
+crossterm = { version = "0.28", features = ["event-stream", "events"] }
+
+# Filesystem
+walkdir = "2.0"
+notify = "6.0"
+
+# Git
+git2 = "0.19"
+
+# Terminal
+portable-pty = "0.8"
+
+# Misc
+unicode-width = "0.1"
+time = { version = "0.3", features = ["formatting", "macros", "local-offset"] }
+pollster = "0.3"
