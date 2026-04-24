@@ -284,23 +284,38 @@ impl ContextManager {
     }
 
     /// Get all messages formatted for LLM
-    pub fn get_messages_for_llm(&self) -> Vec<serde_json::Value> {
+    pub fn get_messages_for_llm(&self) -> Vec<crate::infra::llm::types::LlmMessage> {
         let mut result = Vec::new();
         
         // Add system message if present
         if let Some(ref sys_msg) = self.system_message {
-            result.push(self.message_to_json(&sys_msg.message));
+            result.push(self.message_to_llm_message(&sys_msg.message));
         }
         
         // Add conversation messages
         for prioritized in &self.messages {
-            result.push(self.message_to_json(&prioritized.message));
+            result.push(self.message_to_llm_message(&prioritized.message));
         }
         
         result
     }
 
-    /// Convert message to JSON format for LLM API
+    /// Convert message to LLM message format
+    fn message_to_llm_message(&self, message: &Message) -> crate::infra::llm::types::LlmMessage {
+        use crate::infra::llm::types::LlmMessage;
+        LlmMessage::new(
+            match message.role {
+                crate::MessageRole::User => "user",
+                crate::MessageRole::Assistant => "assistant",
+                crate::MessageRole::System => "system",
+                crate::MessageRole::Tool => "tool",
+            },
+            &message.content,
+        )
+    }
+
+    /// Convert message to JSON format for LLM API (deprecated, use message_to_llm_message)
+    #[allow(dead_code)]
     fn message_to_json(&self, message: &Message) -> serde_json::Value {
         serde_json::json!({
             "role": match message.role {

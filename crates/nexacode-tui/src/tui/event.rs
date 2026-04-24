@@ -5,28 +5,30 @@
 use crate::{Action, CommandAction, InputAction, Mode, SearchAction, SessionAction, Store};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use std::time::Duration;
+use std::sync::Arc;
 use nexacode_core::core::slash_commands::{parse_slash_command, SlashCommand, get_help};
+use nexacode_core::core::agent::AgentController;
 
-pub async fn handle_event(store: &mut Store) -> anyhow::Result<bool> {
+pub async fn handle_event(store: &mut Store, agent: Arc<AgentController>) -> anyhow::Result<bool> {
     if !event::poll(Duration::from_millis(100))? {
         return Ok(false);
     }
 
     match event::read()? {
         Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
-            handle_key_event(store, key_event)
+            handle_key_event(store, key_event, agent).await
         }
         _ => Ok(false),
     }
 }
 
-fn handle_key_event(store: &mut Store, key_event: KeyEvent) -> anyhow::Result<bool> {
+async fn handle_key_event(store: &mut Store, key_event: KeyEvent, agent: Arc<AgentController>) -> anyhow::Result<bool> {
     let state = store.state();
 
     // Handle keys based on current mode
     match state.mode {
         Mode::Normal => handle_normal_mode(store, key_event),
-        Mode::Input => handle_input_mode(store, key_event),
+        Mode::Input => handle_input_mode(store, key_event, agent).await,
         Mode::Command => handle_command_mode(store, key_event),
         Mode::Search => handle_search_mode(store, key_event),
     }
@@ -125,7 +127,7 @@ fn handle_normal_mode(store: &mut Store, key_event: KeyEvent) -> anyhow::Result<
 }
 
 /// Handle keys in Input mode (text input, editing)
-fn handle_input_mode(store: &mut Store, key_event: KeyEvent) -> anyhow::Result<bool> {
+async fn handle_input_mode(store: &mut Store, key_event: KeyEvent, agent: Arc<AgentController>) -> anyhow::Result<bool> {
     // Check if we're in model selection mode
     if !store.state().model_selections.is_empty() {
         return handle_model_selection(store, key_event);
@@ -173,14 +175,21 @@ fn handle_input_mode(store: &mut Store, key_event: KeyEvent) -> anyhow::Result<b
                         }
                         nexacode_core::core::slash_commands::ParseResult::NotACommand(msg) => {
                             // Regular message - add user message
-                            store.dispatch(Action::user_message(msg));
+                            store.dispatch(Action::user_message(msg.clone()));
                             
-                            // TODO: Here we will connect to LLM for processing
-                            // Simulated AI response
-                            store.dispatch(Action::assistant_message(
-                                "I received your message. This is a placeholder response.\n\
-                                 In the future, this will be connected to an LLM."
-                            ));
+                            // Call the agent to process the message
+                            match agent.process_user_message(msg).await {
+                                Ok(response) => {
+                                    // Add assistant response to the conversation
+                                    store.dispatch(Action::assistant_message(response));
+                                }
+                                Err(e) => {
+                                    store.dispatch(Action::show_status(
+                                        format!("Error: {}", e),
+                                        true
+                                    ));
+                                }
+                            }
                         }
                         nexacode_core::core::slash_commands::ParseResult::Error(err) => {
                             store.dispatch(Action::show_status(err, true));

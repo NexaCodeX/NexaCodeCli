@@ -8,8 +8,11 @@ use crossterm::terminal::{
 };
 use crossterm::ExecutableCommand;
 use nexacode_tui::{handle_event, render, Store};
+use nexacode_core::core::agent::AgentController;
+use nexacode_core::Config;
 use ratatui::prelude::*;
 use std::io::{self, Stdout};
+use std::sync::Arc;
 use tracing::info;
 
 fn main() -> Result<()> {
@@ -26,6 +29,10 @@ fn main() -> Result<()> {
     // Initialize data directory if this is a first run
     initialize_data_directory()?;
 
+    // Load config and create agent
+    let config = Config::load();
+    let agent = Arc::new(AgentController::new(config.llm.clone()));
+
     // Setup terminal
     let mut terminal = setup_terminal()?;
 
@@ -33,7 +40,7 @@ fn main() -> Result<()> {
     let mut store = Store::new();
 
     // Run the app
-    let result = run_app(&mut terminal, &mut store);
+    let result = run_app(&mut terminal, &mut store, agent);
 
     // Restore terminal
     restore_terminal(&mut terminal)?;
@@ -80,10 +87,10 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> Result
     Ok(())
 }
 
-fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, store: &mut Store) -> Result<()> {
+fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, store: &mut Store, agent: Arc<AgentController>) -> Result<()> {
     while !store.state().should_quit {
         terminal.draw(|f| render(f, f.size(), store.state()))?;
-        pollster::block_on(handle_event(store))?;
+        pollster::block_on(handle_event(store, agent.clone()))?;
     }
 
     Ok(())

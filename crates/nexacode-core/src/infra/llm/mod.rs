@@ -6,3 +6,5 @@ pub mod anthropic;
 pub mod config;
 
 pub use config::LlmConfig;
+pub use trait_def::{LlmClient, HttpLlmClient};
+pub use types::{LlmRequest, LlmResponse, LlmMessage};

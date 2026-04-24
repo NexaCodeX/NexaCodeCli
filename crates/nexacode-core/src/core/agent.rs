@@ -9,6 +9,8 @@ use tracing::{debug, info, warn};
 
 use crate::{Message, MessageRole, Store};
 use crate::infra::llm::config::LlmConfig;
+use crate::infra::llm::trait_def::{HttpLlmClient, LlmClient};
+use crate::infra::llm::types::{LlmRequest, LlmResponse};
 use super::context::{ContextManager, ContextConfig, MessagePriority};
 
 // ============================================================================
@@ -107,6 +109,8 @@ pub struct AgentController {
     tools: Vec<ToolDefinition>,
     /// LLM configuration
     config: LlmConfig,
+    /// LLM client
+    llm_client: Arc<dyn LlmClient>,
     /// Store reference for state management
     store: Option<Arc<Store>>,
     /// Event sender
@@ -129,11 +133,14 @@ impl AgentController {
             ..Default::default()
         };
         
+        let llm_client = Arc::new(HttpLlmClient::new(config.clone()));
+        
         Self {
             state: Arc::new(RwLock::new(AgentStateEnum::default())),
             context: Arc::new(Mutex::new(ContextManager::new(context_config))),
             tools: Vec::new(),
             config,
+            llm_client,
             store: None,
             event_tx: None,
             tool_executor: None,
@@ -202,7 +209,8 @@ impl AgentController {
     }
 
     /// Process a user message - the main entry point
-    pub async fn process_user_message(&self, content: String) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    /// Returns the assistant's response text
+    pub async fn process_user_message(&self, content: String) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         info!("Processing user message: {}", content);
         
         // Create user message
@@ -217,12 +225,13 @@ impl AgentController {
         // Emit user message event
         self.emit(AgentEvent::UserMessage(content.clone())).await;
         
-        // Run the reasoning loop
+        // Run the reasoning loop and return the response
         self.reasoning_loop().await
     }
 
     /// Core reasoning loop
-    async fn reasoning_loop(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    /// Returns the final assistant response
+    async fn reasoning_loop(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         loop {
             // Check context budget - ContextManager handles pruning automatically
             {
@@ -246,7 +255,7 @@ impl AgentController {
                     self.stream_response(&text).await;
                     
                     // Add assistant message to context
-                    let assistant_message = Message::new(MessageRole::Assistant, text);
+                    let assistant_message = Message::new(MessageRole::Assistant, text.clone());
                     {
                         let mut ctx = self.context.lock().await;
                         ctx.add_message(assistant_message);
@@ -254,7 +263,7 @@ impl AgentController {
                     
                     // Done, return to idle
                     self.set_state(AgentStateEnum::Idle).await;
-                    return Ok(());
+                    return Ok(text);
                 }
                 
                 LlmResponse::ToolCall { name, arguments } => {
@@ -311,12 +320,10 @@ impl AgentController {
             tools: self.tools.clone(),
         };
         
-        // For now, return a mock response
-        // TODO: Implement actual LLM API call using reqwest
         debug!("Calling {} LLM with model: {}", request.provider_name, request.model);
         
-        // Simulate LLM response
-        Ok(LlmResponse::Text("This is a simulated response. LLM integration pending.".to_string()))
+        // Use the LLM client to make the actual API call
+        self.llm_client.call(request).await.map_err(|e| e.into())
     }
 
     /// Stream response to the user
@@ -366,41 +373,6 @@ impl AgentController {
         self.set_state(AgentStateEnum::Idle).await;
         self.emit(AgentEvent::Ready).await;
     }
-}
-
-// ============================================================================
-// LLM Request/Response Types
-// ============================================================================
-
-/// LLM request structure
-#[derive(Debug, Clone)]
-pub struct LlmRequest {
-    /// Provider name
-    pub provider_name: String,
-    /// Model name
-    pub model: String,
-    /// Messages for the conversation
-    pub messages: Vec<serde_json::Value>,
-    /// Maximum tokens in response
-    pub max_tokens: u32,
-    /// Temperature for generation
-    pub temperature: Option<f32>,
-    /// Available tools
-    pub tools: Vec<ToolDefinition>,
-}
-
-/// LLM response types
-#[derive(Debug, Clone)]
-pub enum LlmResponse {
-    /// Text response
-    Text(String),
-    /// Tool call request
-    ToolCall {
-        name: String,
-        arguments: serde_json::Value,
-    },
-    /// Error response
-    Error(String),
 }
 
 // ============================================================================
